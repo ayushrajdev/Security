@@ -15,8 +15,15 @@ const o = z.object({
 
 console.log(s.safeParse('ABCdefW'));
 
-console.log(o.safeParse({
-    name:"dmfnv",
-    email:"fnjdvhf@gmail.com",
-    password:"fdcs"
-}))
+const { success, data, error } = o.safeParse({
+    email: 'fnjdvhcom',
+    password: 32,
+});
+console.log(z.flattenError(error).fieldErrors);
+console.log(
+    o.safeParse({
+        email: 'fnjdvhf@gmail.com',
+        password: "32",
+        age:12
+    }),
+);

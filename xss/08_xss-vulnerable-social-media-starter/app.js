@@ -2,6 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
+import crypto from 'node:crypto';
+
 
 const app = express();
 
@@ -20,24 +22,33 @@ const Post = mongoose.model('Post', postSchema);
 
 app.use((req, res, next) => {
     if (req.headers.accept?.includes('text/html')) {
-
         //CSP header
         res.set({
             'Content-Security-Policy':
                 "default-src 'self';\
-             script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com/;\
+             script-src 'self' 'report-sample' 'unsafe-inline' https://cdn.tailwindcss.com/;\
              style-src 'self' 'unsafe-inline';\
-             connect-src 'self' http://localhost:8000 \
-             ",
+             connect-src 'self' http://localhost:8000; \
+             report-uri /csp-violations",
         });
     }
     next();
 });
 // connect-src -> to which domain the website can send the send the fetch request
-//unsafe-inline -> allow inline script to run 
+//unsafe-inline -> allow inline script to run
 app.use(express.static('./public'));
 
 // Routes
+
+app.post(
+    '/csp-violations',
+    express.json({ type: 'application/csp-report' }),
+    (req, res, next) => {
+        console.log(req.body);
+        res.end(JSON.stringify(req.body));
+    },
+);
+
 app.get('/posts', async (req, res) => {
     const posts = await Post.find().sort({ createdAt: -1 });
     res.setHeader('Set-Cookie', 'loginSecret=hdxhw7yrx.k;httpOnly=true');

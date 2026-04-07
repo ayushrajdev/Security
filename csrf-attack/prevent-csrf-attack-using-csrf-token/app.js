@@ -40,6 +40,20 @@ app.get('/', csrfProtection, (req, res) => {
         <input name="csrfToken" value="${csrfToken}" hidden>
         <button type="submit">Pay</button>
       </form>
+      <script>
+
+      const form = document.querySelector('form');
+      form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          fetch('/pay', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'X-Csrf-Token': '1234',
+            },
+      });
+    });
+  </script>
     </body>
     </html>
   `);
@@ -47,6 +61,9 @@ app.get('/', csrfProtection, (req, res) => {
 
 // Handle payment
 app.post('/pay', csrfProtection, (req, res) => {
+    if (!req.headers['x-csrf-token']) {
+        return res.end('csrf header is missing');
+    }
     amount -= 1000;
     res.redirect('/');
 });

@@ -1,7 +1,8 @@
-import express from 'express';
-import bcrypt from 'bcrypt';
-import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
+import bcrypt from 'bcrypt';
+import express from 'express';
+import { slowDown } from 'express-slow-down';
+import { rateLimit } from 'express-rate-limit';
 
 const app = express();
 const PORT = 4000;
@@ -10,7 +11,13 @@ const limiter = rateLimit({
     windowMs: 5 * 1000,
     limit: 3,
 });
-// app.use(limiter)
+
+const throttleApi = slowDown({
+    delayMs: (hits) => hits * 1000,
+    windowMs: 5000,
+    delayAfter: 2,
+});
+
 app.use(helmet());
 
 app.use((_, res, next) => {
@@ -26,23 +33,22 @@ function throttle({ delay, path, windowSizeInSeconds }) {
     return (req, res, next) => {
         if (!throttleList[req.ip]) {
             throttleList[req.ip] = {
-                [path]: { count: 1, startTime: Date.now() },
+                [path]: { count: 1, lastRequestTime: Date.now() },
+            };
+            return next();
+        }
+
+        const { lastRequestTime, count } = throttleList[req.ip][path];
+
+        const durationInSeconds = (Date.now() - lastRequestTime) / 1000;
+
+        if (durationInSeconds > 2) {
+            throttleList[req.ip] = {
+                [path]: { count: 1, lastRequestTime: Date.now() },
             };
             return next();
         } else {
-            setTimeout(() => {
-                const durationInSeconds =
-                    (Date.now() - throttleList[req.ip][path].startTime) / 1000;
-
-                if (durationInSeconds > windowSizeInSeconds * 1000) {
-                    throttleList[req.ip] = {
-                        [path]: { count: 1, startTime: Date.now() },
-                    };
-                    // console.log(throttleList[req.ip][path].count);
-                    // console.log(throttleList);
-                }
-                next();
-            }, delay * throttleList[req.ip][path].count++);
+            setTimeout(next, delay * throttleList[req.ip][path].count++);
         }
     };
 }
@@ -76,24 +82,20 @@ app.get('/', (_, res) => {
     res.send('<h1>Hello World!</h1>');
 });
 
-app.get(
-    '/register',
-    rateLimiter({ noOfRequests: 5, windowSizeInSeconds: 10 }),
-    throttle({ delay: 1000, path: '/register', windowSizeInSeconds: 5 }),
-    async (_, res) => {
-        // bcrypt.hashSync('123456', 14);
-        return res.json({ message: 'Registered Successfully' });
-    },
-);
+app.use(limiter, throttleApi);
+// app.use(
+//     rateLimiter({ noOfRequests: 5, windowSizeInSeconds: 10 }),
+//     throttle({ delay: 1000, path: '/register', windowSizeInSeconds: 5 }),
+// );
+
+app.get('/register', async (_, res) => {
+    bcrypt.hashSync('123456', 14);
+    return res.json({ message: 'Registered Successfully' });
+});
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Visit http://localhost:${PORT}`);
 });
-
-
-
-
-
 
 // function throttle(waitTime = 1000) {
 //   const throttleData = {};

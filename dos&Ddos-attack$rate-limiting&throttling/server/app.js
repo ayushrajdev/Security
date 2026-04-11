@@ -28,7 +28,7 @@ app.use((_, res, next) => {
 const rateLimitStore = {};
 const throttleList = {};
 
-function throttle({ delay, path, windowSizeInSeconds }) {
+function throttle({ delay, path, windowSizeInSeconds, allowedRequests }) {
     console.log(throttleList);
     return (req, res, next) => {
         if (!throttleList[req.ip]) {
